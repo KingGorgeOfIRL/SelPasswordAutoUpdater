@@ -11,6 +11,17 @@ UserEmail = "eplintern.asher@gmail.com"
 Password = "abc123"
 ChromeOptions = webdriver.ChromeOptions()
 
+class CustomThread(Thread):
+    def __init__(self,group=None,target=None,name=None,args=(),kwargs={},Verbose=None):
+        Thread.__init__(self,group,target,name,args,kwargs)
+        self._return = None
+    def run(self):
+        if self._target is not None:
+            self._return = self._target(*self._args,**self._kwargs)
+    def join(self):
+        Thread.join(self)
+        return self._return
+
 def GenNewPW(Creds:dict,PW=None):
     import string, secrets
     specialChar = "-_|/.;][+?"
@@ -114,7 +125,6 @@ def Login(UserEmail, Password, LoginPortal, driver, waitTime = 20):
 
 def NavToUsers(driver,waitTime = 20):
     wait = WebDriverWait(driver,waitTime)
-    
     for increment in range(6):
         try:
             wait.until(EC.element_to_be_clickable((By.XPATH, "//*[@title = 'Home Menu']"))).click()
@@ -125,7 +135,7 @@ def NavToUsers(driver,waitTime = 20):
         except:
             driver.refresh()
             time.sleep(1)
-    return False
+    return 
 
 def CreateNewAdminUser(UserName, Email, Password, driver,waitTime = 20):
     wait = WebDriverWait(driver, waitTime)
@@ -182,7 +192,7 @@ def ChangePassword(Link, Email, Password, driver, waitTime = 20):
             except ElementClickInterceptedException:    
                 wait.until(EC.element_to_be_clickable((By.XPATH, "//*[contains(text(),'Filters')]"))).click()
             except:
-                NavToUsers(driver,10)
+                NavToUsers(driver,waitTime)
                 driver.refresh()
             tries += 1
 
@@ -193,8 +203,8 @@ def ChangePassword(Link, Email, Password, driver, waitTime = 20):
 
         if Email == "admin":
             driver.get(Link)
-            LoggedIn = Login(Creds["Emails"][1],Password,Link,driver,10)
-            NavToUsers(driver,10)
+            LoggedIn = Login(Creds["Emails"][1],Password,Link,driver,waitTime)
+            NavToUsers(driver,waitTime)
             driver.refresh()
             if not LoggedIn:
                 print("Failed to Login after changing admin password")
@@ -207,57 +217,56 @@ def ChangePassword(Link, Email, Password, driver, waitTime = 20):
     print(f"Failed to Change Password for {Email}")
     return False
 
-def Main(NewCreds:dict,Creds:dict,cred):
-    Link = f"https://{cred.lower()}.ka-ching.asia/web/login"
+def Main(NewCreds:dict,Creds:dict,cred,Link):
     driver = webdriver.Chrome(options=ChromeOptions,service=ChromeService)
     driver.get(Link) 
-    wait = WebDriverWait(driver, 20)
+    waitTime = 30
+    wait = WebDriverWait(driver, waitTime)
+    Succeed = False
     #login to site
-    LoggedIn = Login(Creds["Emails"][1],Creds[cred][1],Link,driver,10)
-    if not LoggedIn:
-        print(f"https://{cred.lower()}.ka-ching.asia/web/login Failed to login")
-        driver.quit()
-        return False
-    NavToUsers(driver,10)
-
     try:
-    #check if every account exists. if all accounts exist, change their passwords
-        for Email in Creds["Emails"]:
-            Password = NewCreds[cred][Creds["Emails"].index(Email)]
-            wait.until(EC.element_to_be_clickable((By.XPATH,f"//*[text() = 'Filters']")))
+        LoggedIn = Login(Creds["Emails"][1],Creds[cred][1],Link,driver,waitTime)
+        if LoggedIn:
+            NavToUsers(driver,waitTime)
+            #check if every account exists. if all accounts exist, change their passwords
+            for Email in Creds["Emails"]:
+                Password = NewCreds[cred][Creds["Emails"].index(Email)]
+                wait.until(EC.element_to_be_clickable((By.XPATH,f"//*[text() = 'Filters']")))
 
-            if len(driver.find_elements(By.XPATH,f"//td[text() = '{Email}']")) < 1:
-                UserName = Creds["Instance Name"][Creds["Emails"].index(Email)]
-                CreatedUser = CreateNewAdminUser(UserName,Email,Password,driver,10)
-                if CreatedUser:
-                    print(f"an account for {Email} was created at {cred.lower()}.ka-ching.asia")
+                if len(driver.find_elements(By.XPATH,f"//td[text() = '{Email}']")) < 1:
+                    UserName = Creds["Instance Name"][Creds["Emails"].index(Email)]
+                    CreatedUser = CreateNewAdminUser(UserName,Email,Password,driver)
+                    if CreatedUser:
+                        print(f"an account for {Email} was created at {Link}")
+                        break
                 else:
-                    driver.quit()
-                    return False
-            else:
-                ChangePassword(Link,Email,Password,driver)
-        print(f"Passwords changed and all accounts created at https://{cred.lower()}.ka-ching.asia")
-        PassedCreds = []
-        for Email in Creds["Emails"]:
-            driver.get(Link)
-            Password = NewCreds[cred][Creds["Emails"].index(Email)]
-            LoggedIn = Login(Email,Password,Link,driver,10)
-            if LoggedIn:
-                driver.get(Link)
-                PassedCreds.append(Email)
-            else:
-                print(f"{Email} failed to authenticate, failed to verify new creds")
+                    ChangePassword(Link,Email,Password,driver)
 
-        if len(PassedCreds) == len(Creds["Emails"]):
-            print("All Credentials verified",end="")
+            PassedCreds = []
+            for Email in Creds["Emails"]:
+                driver.get(Link)
+                Password = NewCreds[cred][Creds["Emails"].index(Email)]
+                LoggedIn = Login(Email,Password,Link,driver,waitTime)
+                if LoggedIn:
+                    driver.get(Link)
+                    PassedCreds.append(Email)
+                else:
+                    print(f"{Email} failed to authenticate, failed to verify new creds")
+
+            if len(PassedCreds) == len(Creds["Emails"]):
+                print(f"Passwords changed and all accounts created at {Link}")
+            else:
+                print("the following credentials have been changed and verified ", PassedCreds)
+            Succeed = True
         else:
-            print("the following credentials have been verified ", PassedCreds)
-        driver.quit()
-        return True
+            print(f"{Link} Failed to login")
+
     except Exception as e:
-        print(f"Failed to change passwords or create accounts at https://{cred.lower()}.ka-ching.asia\n{e}")
-        driver.quit()
-        return False
+        print(f"Failed to change passwords or create accounts at {Link}\n{e}")
+    finally:   
+        driver.close()
+        return Succeed
+    
 
 #ChromeOptions.add_experimental_option("detach",True)
 ChromeOptions.add_argument('--log-level=3')
@@ -287,18 +296,36 @@ Creds = GetCredsFromExcel(OldPasswords)
 total = len(NewCreds)
 finished = 0
 tries = 0
-
+NumThreads = 20
 #loops through all instances/sites to change the passwords
-while len(NewCreds) > 0 and tries < 3:
+while len(NewCreds) > 0 and tries < 40:
+    driver = webdriver.Chrome(options=ChromeOptions,service=ChromeService)
+    driver.close()
     retries = 0
     LoopSet = dict(NewCreds)
+    threads = {}
+
+    increment = 0
     for Site in LoopSet:
-        Passed = Main(LoopSet,Creds,Site)
+        if increment >= NumThreads:
+            break
+        Link = f"https://{Site.lower()}.ka-ching.asia/web/login"
+        instance = CustomThread(target=Main,args=(LoopSet,Creds,Site,Link))
+        instance.start()
+        threads[Site] = [instance]
+        increment += 1
+        
+    for site in threads:
+        result = threads[site][0].join()
+        threads[site].append(result)
+    driver.quit()
+
+    for site in threads:
+        if threads[site][1]:
         #if the password change operation has no errors/exceptions, the instance/site is removed from the loop 
-        if Passed:
-            NewCreds.pop(Site)
+            NewCreds.pop(site)
             retries += 1
-        print(f"({retries} out of {len(LoopSet)} passed)")
+    print(f"({retries} out of {len(LoopSet)} passed)")
     tries += 1
     finished += retries
 end = time.time()
