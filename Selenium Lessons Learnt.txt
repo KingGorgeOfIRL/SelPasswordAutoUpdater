@@ -1,0 +1,11 @@
+Selenium Lessons learnt:
+
+selenium uses a browser client (Chrome, Headless chrome, Firefox, etc) to search for URLs. selenium is automatically, manually parsing through the data received, best description is that selenium is a robot user. like a user, it is limited by the server response time and can only acceess pages though "clicking" the right buttons. Thus, it is important that the selenium script has enough "buffer" to account for network lag, slow server response times, etc. there are 2 main buffering techniques:
+1) using wait (webdriverwait) to force the webdriver to wait a defined amount of time before declaring a timeout exception or element not found. 
+2) set conditional while or for loops to force the webdriver to either reload or retry prior actions to account for observed errors or maybe just chance issues (e.g., slow network for there few seconds). these loops are best used with Try-Except statements due to the webdriver returning a timeout exception, element intercepted click or a host of other issues which can be resolved with a refresh or back and refresh
+
+note, the wait funtion needs to be paired with the ExpectedConditions funtion which will give it and end condition.
+
+due to the script being directly limited by having to wait for the server's response, scripts that need to run multiple scripts will have very long execution times (1hr and more). Thus, it may be advised to include multi-Threading (most suited to I/O heavy programs), Multi-Processing or AsycIo to speed up code execution. 
+
+chrome options or webdriver options are also important to add on "QoS" improvements such as disabling console warning or making the execution headless

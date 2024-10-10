@@ -1,10 +1,11 @@
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service 
 from selenium.webdriver.common.by import By
-from selenium.common.exceptions import TimeoutException, ElementClickInterceptedException
+from selenium.common.exceptions import ElementClickInterceptedException
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from threading import Thread
+from multiprocessing import pool, cpu_count
 import time, os
 from subprocess import CREATE_NO_WINDOW
 UserEmail = "eplintern.asher@gmail.com"
@@ -260,7 +261,6 @@ def Main(NewCreds:dict,Creds:dict,cred,Link):
             Succeed = True
         else:
             print(f"{Link} Failed to login")
-
     except Exception as e:
         print(f"Failed to change passwords or create accounts at {Link}\n{e}")
     finally:   
@@ -279,12 +279,12 @@ ChromeService = Service()
 ChromeService.creation_flags = CREATE_NO_WINDOW
 
 #requests for path to old password file, generates new passwords based on number of sites and users. new passwords is outputted to a file
-#OldPasswords = input("please enter absolute File Path: ")
-#NewCreds = GenNewPW(GetCredsFromExcel(OldPasswords))
-#FilePath = DictToExcel(dic=NewCreds)
-#print(f"New Passwords have been outputed to {FilePath}")
+OldPasswords = input("please enter absolute File Path: ")
+NewCreds = GenNewPW(GetCredsFromExcel(OldPasswords))
+FilePath = DictToExcel(dic=NewCreds)
+print(f"New Passwords have been outputed to {FilePath}")
 
-OldPasswords ="C:/Users/asher/OneDrive/Desktop/Intern Projects/Python/SeleniumPasswordUpdater/Files/NewPWs.csv"
+#OldPasswords ="C:/Users/asher/OneDrive/Desktop/Intern Projects/Python/SeleniumPasswordUpdater/Files/NewPWs.csv"
 start = time.time()
 NewCreds = GetCredsFromExcel(OldPasswords)
 
@@ -296,7 +296,7 @@ Creds = GetCredsFromExcel(OldPasswords)
 total = len(NewCreds)
 finished = 0
 tries = 0
-NumThreads = 20
+NumThreads = 15
 #loops through all instances/sites to change the passwords
 while len(NewCreds) > 0 and tries < 40:
     driver = webdriver.Chrome(options=ChromeOptions,service=ChromeService)
